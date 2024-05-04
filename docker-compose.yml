@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  mysticvault:
+    build: .
+    container_name: mysticvault
+    ports:
+      - "5000:5000"  # Expose the application on port 5000
+    volumes:
+      - ./data:/app/data  # Mount the host's ./data directory to the container's /app/data
+    environment:
+      - APP_ENV=production  # Set environment variables if needed
+    restart: unless-stopped  # Ensures the service restarts unless manually stopped

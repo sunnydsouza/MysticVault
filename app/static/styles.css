@@ -1,0 +1,84 @@
+/* General body styling */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+/* Header styling */
+header {
+    background-color: #007BFF;
+    color: #ffffff;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 24px;
+}
+
+/* Footer styling */
+footer {
+    background-color: #333;
+    color: #ffffff;
+    text-align: center;
+    padding: 10px 20px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+/* Main content area */
+main {
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* Form styling */
+form {
+    background-color: #ffffff;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* Progress bar styling */
+progress {
+    width: 100%;
+    height: 20px;
+}
+
+/* Error list styling */
+#errorList {
+    background-color: #ffdddd;
+    border: 1px solid #ff0000;
+    padding: 10px;
+    margin-top: 20px;
+}
+
+/* Button styling */
+button {
+    background-color: #007BFF;
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+input[type="text"], input[type="password"] {
+    padding: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: calc(100% - 22px); /* Adjust width for padding and border */
+    box-sizing: border-box; /* Include padding and border in width */
+}
+
+
+input:disabled, button:disabled {
+    opacity: 0.5; /* Makes the input fields and buttons look faded */
+    cursor: not-allowed; /* Changes the cursor to indicate the action is not allowed */
+}
