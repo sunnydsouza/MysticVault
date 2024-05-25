@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   mysticvault:
+    image: sunnydsouza/mysticvault:0.1.0
     build: .
     container_name: mysticvault
     ports:
