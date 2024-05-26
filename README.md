@@ -74,22 +74,24 @@ Using Docker, you can easily deploy MysticVault without worrying about manually 
 
 - **Simple as Pie**: With a user interface cleaner than your grandma's kitchen, encrypting files is as simple as pie. 🥧
 - **Files/Folder Support**: Encrypt individual files or entire folders with a single click.
-- **Progress Bar/Error Logging**: Keep track of the encryption/decryption process with a handy progress bar and error logging.
+- **Progress Bar/Error Logging**: Keep track of the encryption/decryption process with a handy progress bar and error logging. Detailed stats on current file being processed and start/end time.
+- **Secure Encryption**: Uses AES-256 encryption, the same standard used by governments and security agencies worldwide.
+- **Chunked Encryption**: Encrypts files in chunks to prevent memory issues with large files.
 - **Docker Support**: Run the app in a Docker container for added security and portability. Can work alongside Plex, Sonarr, Radarr, and other media servers.
 - **Photo Friendly**: Got photos? Keep all those memories safe from the nosy parkers!
-- **No PhD Required**: You don't need to be a rocket scientist or a cryptographer to use the app. If you can click a button, you're good to go!
+
 
 ## 📸 Screenshots
 
 Here's a sneak peek at what you're getting into:
 
-![App Screenshot](docs/images/Mystic%20Vault%202024-05-04%2010-09-47.png)
+![App Screenshot1](docs/images/Mystic%20Vault%202024-05-04%2010-09-47.png)
+![App Screenshot2](docs/images/Mystic%20Vault%202024-05-04%2010-09-48.png)
 
 ✅ ToDo Improvement Points
-- Integrate more advanced cryptographic features.
-- Improve the drag-and-drop functionality for batch processing.
-- Better/Advanced tree view for file management?
-- Explore the addition of multi-language support.
+- A better/advanced UI for file management?
+- Seamless file encryption/decryption on demand
+
 
 ## 🤝 Contributing
 
