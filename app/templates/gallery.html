@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mystic Vault</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .folder-tree {
+            overflow-y: auto;
+            height: 80vh;
+        }
+
+        .folder-item {
+            padding: 5px;
+        }
+
+        /* .folder-item:hover, */
+        .active-folder {
+            background-color: #f0f0f0;
+        }
+
+        .icon,
+        .folder-name {
+            margin-left: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .file-item {
+            position: relative;
+            /* Required for positioning the checkbox */
+            width: 150px;
+            /* Adjust based on your preference */
+            margin: 10px;
+            display: inline-block;
+            vertical-align: top;
+            text-align: center;
+        }
+
+        .file-item:hover {
+            transform: scale(1.05);
+            background-color: #f9f9f9;
+        }
+
+        .file-icon {
+            font-size: 48px;
+            color: #666;
+            display: block;
+        }
+
+        .file-label {
+            font-size: 0.9em;
+            max-width: 140px;
+            /* Set a maximum width for the label */
+            overflow-wrap: break-word;
+            /* Allows long words to be broken and wrapped to the next line */
+            word-wrap: break-word;
+            margin: auto;
+            /* Center the label */
+            padding-top: 5px;
+            /* Space between icon and text */
+        }
+
+
+        .draggable {
+            cursor: ew-resize;
+        }
+
+        #fileDisplayArea {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        /* .file-label { display: block; font-size: 0.9em; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } */
+        .file-checkbox {
+            position: absolute;
+            /* Absolute positioning within the file item */
+            top: 0;
+            left: 0;
+            margin-left: 5px;
+            margin-top: 5px;
+        }
+
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            position: relative;
+            min-width: 300px;
+            /* Minimum width */
+            max-width: 600px;
+            /* Maximum width */
+            margin: auto;
+            /* Center the modal */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .cancel-btn {
+            background-color: #ccc;
+            /* Gray background */
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <div class="col-md-3 border-end">
+                <div class="py-3 text-center"><strong>Mystic Vault</strong></div>
+                <div id="folderTree" class="folder-tree"></div>
+                <div class="text-center py-3 small">
+                    <a href="https://github.com/yourusername/mysticvault" target="_blank"><i class="fab fa-github"></i>
+                        View on GitHub</a>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="py-2 border-bottom mb-3">
+                    <input type="checkbox" id="selectAll" class="me-2">Select All
+                    <input type="password" id="passwordInput" class="form-control form-control-sm mx-1"
+                        placeholder="Enter password" style="width: auto; display: inline-block;">
+                    <button id="encryptBtn" class="btn btn-primary btn-sm mx-1">Encrypt</button>
+                    <button id="decryptBtn" class="btn btn-secondary btn-sm">Decrypt</button>
+                    <i id="refreshBtn" class="fas fa-sync-alt mx-1" onclick="refreshContent()"></i>
+                </div>
+
+                <div id="fileDisplayArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="progressModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>Progress</h4>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div id="timeStats" style="margin-top: 10px;"></div>
+            <div id="progressText">Processing File: N/A, File Progress: 0.00%, Overall Progress: 0.00%, Total Files: 0,
+                Errors: 0</div>
+            <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+            <div id="errorList" style="display: none;"></div>
+            <button id="okBtn" style="display: none;">Ok</button>
+            <button id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let startTime;
+            const encryptBtn = document.getElementById('encryptBtn');
+            const decryptBtn = document.getElementById('decryptBtn');
+            const passwordInput = document.getElementById('passwordInput'); // Assuming you have an input for password
+
+            let basePath = '{{ dir | urlencode }}'; // Base path derived from the query parameter
+            //Remove the last part from basePath
+            basePath = basePath.substring(0, basePath.lastIndexOf('/'));
+            let currentSelectedPath = ''; // Track the currently selected path for operations
+
+
+            fetch(`/folders?dir={{ dir | urlencode }}`)
+                .then(response => response.json())
+                .then(data => {
+                    const folderTree = document.getElementById('folderTree');
+                    const rootNode = createFolderNode(data, basePath, true);
+                    folderTree.appendChild(rootNode);
+                    rootNode.querySelector('.folder-header').click(); // Auto-select the root node
+                });
+
+            /** Responsible for creating the tree structure in the sidebar **/    
+            function createFolderNode(folder, currentPath, isRoot = false) {
+                const folderElement = document.createElement('div');
+                folderElement.className = 'folder-item';
+
+                // Folder header for interaction
+                const folderHeader = document.createElement('div');
+                folderHeader.className = 'folder-header';
+
+                const icon = document.createElement('i');
+                icon.className = folder.children ? 'fas fa-folder-open icon' : 'fas fa-folder icon';
+                folderHeader.appendChild(icon);
+
+                const textNode = document.createElement('span');
+                textNode.className = 'folder-name';
+                textNode.textContent = folder.name;
+                folderHeader.appendChild(textNode);
+
+                folderHeader.onclick = function (event) {
+                    event.stopPropagation();
+                    currentSelectedPath = currentPath + '/' + folder.name;
+                    displayFiles(folder.children, currentSelectedPath);
+                    document.querySelectorAll('.folder-header').forEach(el => el.classList.remove('active-folder'));
+                    this.classList.add('active-folder');
+                    // Reset the select all when switching folders
+                    document.getElementById('selectAll').checked = false;
+                };
+
+                folderElement.appendChild(folderHeader);
+
+                // Child list for any children folders
+                if (folder.children && folder.children.some(child => child.children)) {
+                    const childList = document.createElement('div');
+                    childList.className = 'child-list';
+                    childList.style.display = 'block'; // Keep expanded
+                    folder.children.forEach(child => {
+                        if (child.children) {
+                            // childList.appendChild(createFolderNode(child));
+                            childList.appendChild(createFolderNode(child, currentPath + '/' + folder.name));
+                        }
+                    });
+                    folderElement.appendChild(childList);
+                }
+
+                return folderElement;
+            }
+
+            /** Responsible for creating the fileManager main content **/  
+            function displayFiles(files, path) {
+                const fileDisplayArea = document.getElementById('fileDisplayArea');
+                fileDisplayArea.innerHTML = '';
+                files.forEach(file => {
+                    if (!file.children) {
+                        const fileElement = document.createElement('div');
+                        fileElement.className = 'file-item';
+                        fileElement.setAttribute('data-file-name', file.name);  // Store the file name
+                        fileElement.setAttribute('data-encrypted-file-name', file.encrypted_file_name);  // Store the encrypted file name
+
+                        // Set the alt text with newline characters
+                        const fileSizeFormatted = formatBytes(file.file_size);
+                        fileElement.title = `Name:${file.name}\nSize: ${fileSizeFormatted}\nModified: ${file.last_modified}\nPath: ${path}/${file.name}\nEncryptedName:${file.encrypted_file_name}\nStatus:${file.status}`;
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'file-checkbox';
+                        fileElement.appendChild(checkbox);
+
+                        // Conditionally add a lock icon based on encryption status
+                        const lockIcon = document.createElement('i');
+                        lockIcon.className = file.status === 'encrypted' ? 'fas fa-lock' : 'fas fa-unlock-alt';
+                        lockIcon.style.color = file.status === 'encrypted' ? 'green' : 'orange';
+                        lockIcon.style.float = 'right';  // Position it to the right
+                        fileElement.appendChild(lockIcon);
+
+                        const icon = document.createElement('i');
+                        icon.className = 'fas fa-file-alt file-icon';
+                        fileElement.appendChild(icon);
+
+                        const label = document.createElement('div');
+                        label.className = 'file-label';
+                        label.textContent = file.name;
+                        fileElement.appendChild(label);
+
+                        // fileElement.ondblclick = () => openMedia(file.name, `${path}`,`${file.encrypted_file_name}`, file.status =='encrypted'? true: false); // Handle double-click to open media
+
+                        fileElement.ondblclick = () => {
+                            if (file.status == 'encrypted') {
+                                decryptAndShowFile(file.name, file.encrypted_file_name, path);
+                            } else {
+                                openMedia(file.name, path); // No decryption needed for non-encrypted files
+                            }
+                        };
+                        fileDisplayArea.appendChild(fileElement);
+                    }
+                });
+            }
+
+            // Helper function to format bytes into the highest order size
+            function formatBytes(bytes, decimals = 2) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024,
+                    dm = decimals < 0 ? 0 : decimals,
+                    sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+                    i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+
+            function decryptAndShowFile(originalFileName, encryptedFileName, path) {
+                const password = prompt("Enter password to decrypt the file:");
+                if (!password) {
+                    alert("Password is required to decrypt the file.");
+                    return;
+                }
+
+                console.log("Decrypting file:", encryptedFileName);
+                console.log("Original file name:", originalFileName);
+
+                const fullPath = `${path}/${encryptedFileName}`;
+                const onComplete = () => {
+                    // Show the OK button
+                    document.getElementById('okBtn').style.display = 'block';
+                    //Hide the cancel button
+                    //Add event listener to the OK button
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    document.getElementById('okBtn').onclick = () => {
+                        closeModal();  //Close the modal
+                        openMedia(originalFileName, path); // Play/Show the decrypted file
+                    }
+                    const endTime = new Date();
+                    const totalTime = (endTime - startTime) / 1000;
+                    document.getElementById('timeStats').textContent = `Start: ${startTime.toLocaleTimeString()}, End: ${endTime.toLocaleTimeString()}, Total Time: ${totalTime.toFixed(2)} seconds`;
+
+                };
+                handleEncryptionDecryption('decrypt', fullPath, password, onComplete); // Assuming you modify handleEncryptionDecryption to accept path and password directly
+
+            }
+
+
+            function openMedia(fileName, path) {
+
+                showFile(fileName, path);
+
+            }
+
+            function showFile(fileName, path) {
+                console.log('Opening media:', fileName, path);
+                const extension = fileName.split('.').pop().toLowerCase();
+                const container = document.createElement('div');
+                container.className = 'media-container';
+                container.style.position = 'fixed';
+                container.style.top = '0';
+                container.style.left = '0';
+                container.style.width = '100vw';
+                container.style.height = '100vh';
+                container.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                container.style.display = 'flex';
+                container.style.justifyContent = 'center';
+                container.style.alignItems = 'center';
+                container.style.zIndex = '9999';
+
+                container.onclick = function () {
+                    document.body.removeChild(container);
+                };
+
+                const mediaPath = `/media?dir=${encodeURIComponent(path)}&file=${encodeURIComponent(fileName)}`;
+
+                if (['png', 'gif', 'jpg', 'jpeg'].includes(extension)) {
+                    const img = new Image();
+                    img.src = mediaPath;
+                    img.style.maxWidth = '90%';
+                    img.style.maxHeight = '90%';
+                    container.appendChild(img);
+                } else if (['mp4', 'mkv', 'avi'].includes(extension)) {
+                    const video = document.createElement('video');
+                    video.src = mediaPath;
+                    video.controls = true;
+                    video.style.maxWidth = '90%';
+                    video.style.maxHeight = '90%';
+                    video.autoplay = true;
+                    container.appendChild(video);
+                    // setupVideoListeners(video);
+                    // Setup the observer on the container that holds the video
+                    setupVideoCloseObserver(container, () => {
+                        console.log('Handle video close tasks here.');
+                    });
+                }
+
+                document.body.appendChild(container);
+            }
+
+            document.getElementById('selectAll').onclick = function () {
+                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+                fileCheckboxes.forEach(cb => cb.checked = this.checked);
+            };
+
+
+            encryptBtn.onclick = function () {
+                const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
+                    .map(cb => cb.parentElement.getAttribute('data-file-name'));
+                const paths = selectedFiles.map(f => `${currentSelectedPath}/${f}`).join(';');
+                const onComplete = () => {
+                    // Show the OK button
+                    document.getElementById('okBtn').style.display = 'block';
+                    //Hide the cancel button
+                    //Add event listener to the OK button
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    document.getElementById('okBtn').onclick = () => {
+                        closeModal();  //Close the modal
+                        refreshPage(); //refresh the file display
+                    }
+                    const endTime = new Date();
+                    const totalTime = (endTime - startTime) / 1000;
+                    document.getElementById('timeStats').textContent = `Start: ${startTime.toLocaleTimeString()}, End: ${endTime.toLocaleTimeString()}, Total Time: ${totalTime.toFixed(2)} seconds`;
+
+                };
+                handleEncryptionDecryption('encrypt', paths, passwordInput.value, onComplete);
+            };
+
+            decryptBtn.onclick = function () {
+                const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
+                    .map(cb => cb.parentElement.getAttribute('data-encrypted-file-name'));
+                const paths = selectedFiles.map(f => `${currentSelectedPath}/${f}`).join(';');
+                const onComplete = () => {
+                    // Show the OK button
+                    document.getElementById('okBtn').style.display = 'block';
+                    //Hide the cancel button
+                    //Add event listener to the OK button
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    document.getElementById('okBtn').onclick = () => {
+                        closeModal();  //Close the modal
+                        refreshPage(); //refresh the file display
+                    }
+                    const endTime = new Date();
+                    const totalTime = (endTime - startTime) / 1000;
+                    document.getElementById('timeStats').textContent = `Start: ${startTime.toLocaleTimeString()}, End: ${endTime.toLocaleTimeString()}, Total Time: ${totalTime.toFixed(2)} seconds`;
+
+                };
+                handleEncryptionDecryption('decrypt', paths, passwordInput.value, onComplete);
+            };
+
+
+            function handleEncryptionDecryption(action, paths, password, onComplete) {
+
+                // const password = passwordInput.value;
+
+                if (!password) {
+                    alert('Password is required');
+                    return;
+                }
+
+                // Show modal and initiate progress
+                document.getElementById('progressModal').style.display = 'flex';
+                document.getElementById('cancelBtn').textContent = 'Cancel';
+                document.getElementById('cancelBtn').onclick = cancelOperation;
+
+                // Placeholder for starting the operation
+                console.log(`${action}ing:`, paths);
+                startTime = new Date(); // Capture start time when the request is sent
+                fetch(`/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ folder_path: paths, password: password })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.task_id) {
+                            console.log(`Task ${data.task_id} started successfully.`);
+                            updateProgress(data.task_id, onComplete); // Start updating progress
+                        } else {
+                            console.error('Failed to start task:', data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error starting task:', error);
+                    });
+            }
+
+
+            function updateProgress(taskId, onComplete) {
+                fetch(`/progress/${taskId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // const progressBar = document.getElementById('progressBar');
+                        // const progressText = document.getElementById('progressText');
+                        // const timeStats = document.getElementById('timeStats');
+                        const currentTime = new Date();
+                        const elapsedTime = (currentTime - startTime) / 1000; // Calculate total time in seconds
+                        document.getElementById('timeStats').textContent = `Start: ${startTime.toLocaleTimeString()}, Elapsed Time: ${elapsedTime.toFixed(2)} seconds`;
+                        document.getElementById('progressBar').value = data.overall_progress; // Update overall progress bar
+                        document.getElementById('progressText').textContent = `Current File: ${data.current_file || 'N/A'}, File Progress: ${data.current_file_progress.toFixed(2)}%, Overall Progress: ${data.overall_progress.toFixed(2)}%, Total Files: ${data.total_files}, Errors: ${data.errors.length}`;
+
+                        if (data.overall_progress < 100) {
+                            setTimeout(() => updateProgress(taskId, onComplete), 1000);
+
+                        } else {
+                            onComplete();
+                        }
+
+                        if (data.errors && data.errors.length > 0) {
+                            let errorHtml = '<ul>';
+                            data.errors.forEach(error => {
+                                errorHtml += `<li>Error with file ${error.file}: ${error.error}</li>`;
+                            });
+                            errorHtml += '</ul>';
+                            document.getElementById('errorList').innerHTML = errorHtml;
+                            document.getElementById('errorList').style.display = 'block';
+                        }
+                    })
+                    .catch(error => console.error('Fetch Error:', error));
+            }
+
+            function cancelOperation() {
+                // Placeholder for cancel logic
+                if (confirm('Are you sure you want to cancel the operation?')) {
+                    // Assume function to stop the operation
+                    console.log('Operation cancelled');
+                    closeModal();
+                }
+            }
+
+            const modal = document.getElementById('progressModal');
+            const closeBtn = document.querySelector('.close-btn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            closeBtn.addEventListener('click', attemptCloseModal);
+            cancelBtn.addEventListener('click', attemptCloseModal);
+
+            function closeModal() {
+                // Hide the modal
+                document.getElementById('progressModal').style.display = 'none';
+
+                // Reset progress bar to zero
+                document.getElementById('progressBar').value = 0;
+
+                // Clear text content
+                document.getElementById('progressText').textContent = '';
+                document.getElementById('timeStats').textContent = '';
+                document.getElementById('errorList').innerHTML = '';
+                document.getElementById('errorList').style.display = 'none';
+
+                document.getElementById('okBtn').style.display = 'none';
+                // Reset the button to initial state if needed
+                document.getElementById('cancelBtn').textContent = 'Cancel';
+                document.getElementById('cancelBtn').onclick = cancelOperation; // Ensure cancel operation is set back if it was changed to OK
+
+            }
+
+
+            function refreshPage() {
+                // Reload the entire page to reflect changes TODO optimize this better.
+                window.location.reload();
+            }
+
+
+
+            // Function to close modal with confirmation
+            function attemptCloseModal() {
+                if (confirm('Are you sure you want to cancel the operation? Any progress will be lost.')) {
+                    closeModal();
+                }
+            }
+
+
+            //EXPERIMENT: try to guage the different events from video elements
+            const setupVideoListeners = (videoElement) => {
+                videoElement.addEventListener('ended', () => {
+                    console.log('Video has ended.');
+
+                    // onVideoClose();
+                });
+
+                videoElement.addEventListener('pause', () => {
+                    console.log('Video has been paused.');
+                    // refreshPage();
+                });
+
+                // Optional: If you are handling a case where the source gets emptied
+                videoElement.addEventListener('emptied', () => {
+                    console.log('Video source was emptied.');
+                    // onVideoClose();
+                });
+            }
+
+            //EXPERIMENT: mutation observer. 
+            function setupVideoCloseObserver(containerElement, onVideoClose) {
+                let observer = new MutationObserver((mutations) => {
+                    for (let mutation of mutations) {
+                        if (mutation.type === 'childList') {
+                            // Check if any of the removed nodes is the video element
+                            for (let removedNode of mutation.removedNodes) {
+                                if (removedNode.tagName === 'VIDEO') {
+                                    console.log('Video element was removed from DOM.');
+                                    onVideoClose();
+                                    observer.disconnect(); // Disconnect to prevent memory leaks
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Observe the parent element for removal of child elements
+                observer.observe(containerElement, {
+                    childList: true  // Only monitor for adding or removing from the DOM
+                });
+            }
+
+
+        });
+    </script>
+</body>
+
+</html>

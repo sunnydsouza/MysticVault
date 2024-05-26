@@ -78,19 +78,12 @@ def encrypt_folder(task_id, password, folder_path):
     paths = process_paths(folder_path)
     files_to_process = []
 
-     # Check and collect all files that are not already encrypted
     for path in paths:
         if os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 files_to_process.extend([os.path.join(root, file) for file in files if not file.endswith('.sef')])
         elif os.path.isfile(path) and not path.endswith('.sef'):
             files_to_process.append(path)
-        else:
-            logging.error(f"Failed to find {path}: No such file or directory")
-            set_progress(task_id, 0, 0, path, 0, [{"file": path, "error": "No such file or directory"}])
-            return  # Optionally return after first failure or collect all failures
-
-
 
     total_files = len(files_to_process)
     processed_files = 0
@@ -99,10 +92,7 @@ def encrypt_folder(task_id, password, folder_path):
     if total_files == 0:
         set_progress(task_id, 100, total_files, None, 100, errors)
         return
-    
-    salt = os.urandom(16)
-    key = derive_key(password, salt)
-    
+
     for file_path in files_to_process:
         try:
             encrypted_filename = scramble_name(os.path.basename(file_path))
@@ -110,10 +100,15 @@ def encrypt_folder(task_id, password, folder_path):
             file_size = os.path.getsize(file_path)
             processed_size = 0
 
-            with open(file_path, 'rb') as infile, open(encrypted_file_path, 'wb') as outfile:
-                cipher = Cipher(algorithms.AES(key), modes.CFB(os.urandom(16)), backend=default_backend())
-                encryptor = cipher.encryptor()
+            iv = os.urandom(16)
+            salt = os.urandom(16)
+            key = derive_key(password, salt)
+            cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+            encryptor = cipher.encryptor()
 
+            with open(file_path, 'rb') as infile, open(encrypted_file_path, 'wb') as outfile:
+                outfile.write(iv)  # Store IV at the start of the file
+                outfile.write(salt)  # Store salt at the start of the file right after IV
                 while True:
                     chunk = infile.read(10485760)  # Read in chunks of 10 MB
                     if not chunk:
@@ -123,7 +118,6 @@ def encrypt_folder(task_id, password, folder_path):
                     current_file_progress = (processed_size / file_size) * 100
                     overall_progress = (processed_files / total_files) * 100 + (current_file_progress / total_files)
                     set_progress(task_id, overall_progress, total_files, file_path, current_file_progress, errors)
-
                 outfile.write(encryptor.finalize())
 
             os.remove(file_path)
@@ -131,9 +125,8 @@ def encrypt_folder(task_id, password, folder_path):
         except Exception as e:
             logging.error(f"Failed to encrypt {file_path}: {str(e)}")
             errors.append({"file": file_path, "error": str(e)})
-            set_progress(task_id, (processed_files / total_files) * 100, total_files, file_path, 100, errors)
 
-    set_progress(task_id, 100, total_files, None, 100, errors)
+    set_progress(task_id, 100, total_files, file_path, 100, errors)
 
 
 
@@ -141,18 +134,12 @@ def decrypt_folder(task_id, password, folder_path):
     paths = process_paths(folder_path)
     files_to_process = []
 
-    # Check and collect all files to be decrypted
     for path in paths:
         if os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 files_to_process.extend([os.path.join(root, file) for file in files if file.endswith('.sef')])
         elif os.path.isfile(path) and path.endswith('.sef'):
             files_to_process.append(path)
-        else:
-            logging.error(f"Failed to find {path}: No such file or directory")
-            set_progress(task_id, 0, 0, path, 0, [{"file": path, "error": "No such file or directory"}])
-            return  # Optionally return after first failure or collect all failures
-
 
     total_files = len(files_to_process)
     processed_files = 0
@@ -164,17 +151,17 @@ def decrypt_folder(task_id, password, folder_path):
 
     for file_path in files_to_process:
         try:
-            file_size = os.path.getsize(file_path)
-            processed_size = 0
-
             with open(file_path, 'rb') as infile:
-                nonce, salt = infile.read(16), infile.read(16)
+                iv = infile.read(16)
+                salt = infile.read(16)
                 key = derive_key(password, salt)
-
-                cipher = Cipher(algorithms.AES(key), modes.CFB(nonce), backend=default_backend())
+                cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
                 decryptor = cipher.decryptor()
 
                 decrypted_file_path = os.path.join(os.path.dirname(file_path), unscramble_name(os.path.basename(file_path)))
+                file_size = os.path.getsize(file_path) - len(iv) - len(salt)  # Adjust file size for progress calculation
+                processed_size = 0
+
                 with open(decrypted_file_path, 'wb') as outfile:
                     while True:
                         chunk = infile.read(1024 * 1024)  # Read in chunks of 1 MB
@@ -193,6 +180,6 @@ def decrypt_folder(task_id, password, folder_path):
             logging.error(f"Failed to decrypt {file_path}: {str(e)}")
             errors.append({"file": file_path, "error": str(e)})
 
-    set_progress(task_id, 100, total_files, None, 100, errors)
+    set_progress(task_id, 100, total_files, file_path, 100, errors)
 
 
