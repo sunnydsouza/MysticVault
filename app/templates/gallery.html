@@ -17,10 +17,15 @@
         .folder-tree {
             overflow-y: auto;
             height: 80vh;
+            margin-left: 15px;
+            /* height: calc(100% - 60px); */
+            /* Adjust height accounting for header/footer */
+
         }
 
         .folder-item {
             padding: 5px;
+            margin-left: 5px;
         }
 
         /* .folder-item:hover, */
@@ -35,18 +40,58 @@
             user-select: none;
         }
 
-        .file-item {
+        /* .file-item {
             position: relative;
-            /* Required for positioning the checkbox */
+            
             width: 150px;
-            /* Adjust based on your preference */
+            
             margin: 10px;
             display: inline-block;
             vertical-align: top;
             text-align: center;
+        } */
+
+        .file-item {
+            font-size: 0.9em;
+            position: relative;
+            width: 150px;
+            height: 150px;
+            /* Set a fixed height */
+            margin: 10px;
+            display: inline-block;
+            vertical-align: top;
+            text-align: center;
+            /* border: 1px solid lightgray;  */
+            border-radius: 8px;
+            /* Rounded corners */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            /* Subtle shadow for depth */
+            transition: transform 0.2s;
+            /* Smooth transform effect */
         }
 
         .file-item:hover {
+            transform: scale(1.05);
+            /* Scale up on hover */
+            background-color: #e2e0e0;
+            /* Light grey background on hover */
+        }
+
+        .file-item.active {
+            background-color: #f0f0f0;
+            /* Light grey background for the active item */
+        }
+
+        .file-icon {
+            font-size: 48px;
+            color: #666;
+            display: block;
+            min-height: 100px;
+            align-content: center
+        }
+
+
+        /* .file-item:hover {
             transform: scale(1.05);
             background-color: #f9f9f9;
         }
@@ -55,6 +100,17 @@
             font-size: 48px;
             color: #666;
             display: block;
+        } */
+
+        .file-icon,
+        .thumbnail {
+            display: block;
+            max-width: 100%;
+            /* Ensure the icon or thumbnail does not exceed the container width */
+            max-height: 100px;
+            /* Limit the height of the icon or thumbnail */
+            margin: 0 auto;
+            /* Center horizontally */
         }
 
         .file-label {
@@ -82,14 +138,24 @@
             align-items: flex-start;
         }
 
+        /* #fileDisplayArea {
+            flex-grow: 1;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            overflow-y: auto;
+            
+        } */
+
         /* .file-label { display: block; font-size: 0.9em; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } */
         .file-checkbox {
             position: absolute;
             /* Absolute positioning within the file item */
             top: 0;
             left: 0;
-            margin-left: 5px;
-            margin-top: 5px;
+            /* margin-left: 5px;
+            margin-top: 5px; */
         }
 
         .modal {
@@ -145,13 +211,106 @@
             font-size: 24px;
             color: #333;
         }
+
+        .container-fluid {
+            display: flex;
+            /* Ensures flex layout for the entire container */
+            height: 100vh;
+            /* Full viewport height */
+            padding: 0;
+            margin: 0;
+        }
+
+        .row {
+            display: flex;
+            flex-grow: 1;
+            /* Allows the row to take up all available space */
+            width: 100%;
+            /* Full width */
+        }
+
+        #sidebar {
+            width: 250px;
+            /* Adjust the width of the sidebar */
+            transition: width 0.3s ease;
+            /* Smooth transition for sidebar toggling */
+            overflow: hidden;
+            /* Hides content when the sidebar is collapsed */
+            padding: 0px;
+            margin: 0px;
+        }
+
+        #main-content {
+            flex-grow: 1;
+            /* Allows the main content to fill the rest of the space */
+            overflow-y: auto;
+            /* Scrollable main content */
+        }
+
+        /* .col-md-3,
+        .col-md-9 {
+            display: flex;
+            flex-direction: column;
+            
+            overflow: hidden;
+           
+        }
+
+        .col-md-3 {
+            flex: 0 0 auto;
+            
+            width: 250px;
+            
+        }
+
+        .col-md-9 {
+            flex-grow: 1;
+            
+            overflow-y: auto;
+           
+        } 
+
+        .resize-handle {
+            background-color: #ccc;
+            cursor: ew-resize;
+            width: 5px;
+           
+            align-self: stretch;
+            
+        }*/
+        .toggle-sidebar-btn {
+            cursor: pointer;
+            /* Makes the button feel interactive */
+            padding: 5px 10px;
+            /* Padding for aesthetic spacing */
+            border: none;
+            /* No border for a cleaner look */
+            background-color: #8abbf0;
+            /* Bootstrap primary color */
+            color: white;
+            /* Text color for the button */
+            border-radius: 5px;
+            /* Rounded corners for the button */
+        }
+
+        .toggle-sidebar-btn:hover {
+            background-color: #ecdf88;
+            /* Light background on hover for better interaction */
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 0;
+                /* Collapse sidebar by default on mobile */
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container-fluid h-100">
         <div class="row h-100">
-            <div class="col-md-3 border-end">
+            <div class="col-md-3 border-end" id="sidebar">
                 <div class="py-3 text-center"><strong>Mystic Vault</strong></div>
                 <div id="folderTree" class="folder-tree"></div>
                 <div class="text-center py-3 small">
@@ -159,8 +318,11 @@
                         View on GitHub</a>
                 </div>
             </div>
-            <div class="col-md-9">
+            <!-- <div class="resize-handle"></div>  -->
+            <div class="col-md-9" id="main-content">
+
                 <div class="py-2 border-bottom mb-3">
+                    <button class="toggle-sidebar-btn"><i class="fas fa-bars"></i></button>
                     <input type="checkbox" id="selectAll" class="me-2">Select All
                     <input type="password" id="passwordInput" class="form-control form-control-sm mx-1"
                         placeholder="Enter password" style="width: auto; display: inline-block;">
@@ -202,25 +364,85 @@
             //Remove the last part from basePath
             basePath = basePath.substring(0, basePath.lastIndexOf('/'));
             let currentSelectedPath = ''; // Track the currently selected path for operations
+            const toggleBtn = document.querySelector('.toggle-sidebar-btn');
+            const sidebar = document.querySelector('#sidebar');
+            const icon = toggleBtn.querySelector('i');
 
+            toggleBtn.addEventListener('click', function () {
+                const isOpen = sidebar.offsetWidth > 1;
+                console.log("isOpen", sidebar.offsetWidth);
 
-            fetch(`/folders?dir={{ dir | urlencode }}`)
+                // Toggle sidebar width
+                sidebar.style.width = isOpen ? '0' : '250px';
+                // Switch the icon
+                // icon.classList.toggle('fa-bars', isOpen);
+                // icon.classList.toggle('fa-times', !isOpen);
+            });
+            // const handle = document.querySelector('.resize-handle');
+            // let isResizing = false;
+
+            // Start resizing on mouse down
+            // handle.addEventListener('mousedown', function (e) {
+            //     isResizing = true;
+            //     document.addEventListener('mousemove', handleMouseMove);
+            //     document.addEventListener('mouseup', stopResize);
+            //     e.preventDefault();
+            // });
+
+            // function handleMouseMove(e) {
+            //     if (!isResizing) {
+            //         return;
+            //     }
+            //     // Calculate and adjust the width of the sidebar
+            //     const newWidth = e.clientX;
+            //     sidebar.style.width = `${newWidth}px`;
+            // }
+
+            // function stopResize(e) {
+            //     // Stop the resizing operation
+            //     isResizing = false;
+            //     document.removeEventListener('mousemove', handleMouseMove);
+            //     document.removeEventListener('mouseup', stopResize);
+            // }
+
+            // fetch(`/folders?dir={{ dir | urlencode }}`)
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         const folderTree = document.getElementById('folderTree');
+            //         const rootNode = createFolderNode(data, basePath, true);
+            //         folderTree.appendChild(rootNode);
+            //         rootNode.querySelector('.folder-header').click(); // Auto-select the root node
+            //     });
+
+            fetch(`/folders`)
                 .then(response => response.json())
                 .then(data => {
-                    const folderTree = document.getElementById('folderTree');
-                    const rootNode = createFolderNode(data, basePath, true);
-                    folderTree.appendChild(rootNode);
-                    rootNode.querySelector('.folder-header').click(); // Auto-select the root node
-                });
+                    if (data.error) {
+                        document.getElementById('fileDisplayArea').innerHTML = `<h4>${data.error}</h4><p>${data.instructions}</p>`;
+                        return;
+                    }
 
-            /** Responsible for creating the tree structure in the sidebar **/    
-            function createFolderNode(folder, currentPath, isRoot = false) {
+                    const folderTree = document.getElementById('folderTree');
+                    folderTree.innerHTML = ''; // Clear existing tree if any
+
+                    const currentFolder = localStorage.getItem('currentFolder') || data.current_folder; // Use stored folder or default
+
+                    data.trees.forEach(tree => {
+                        const rootNode = createFolderNode(tree, currentFolder);
+                        folderTree.appendChild(rootNode);
+                        // if (tree.path === currentFolder) {
+                        rootNode.querySelector('.folder-header.active-folder')?.click(); //TODO: there has to be a better way to do this.Auto-select and load the current folder
+                        // }
+                    });
+                });
+            /** Responsible for creating the tree structure in the sidebar **/
+            function createFolderNode(folder, selectedFolder) {
                 const folderElement = document.createElement('div');
                 folderElement.className = 'folder-item';
 
                 // Folder header for interaction
                 const folderHeader = document.createElement('div');
-                folderHeader.className = 'folder-header';
+                folderHeader.className = 'folder-header ' + (selectedFolder === folder.path ? 'active-folder' : '');
 
                 const icon = document.createElement('i');
                 icon.className = folder.children ? 'fas fa-folder-open icon' : 'fas fa-folder icon';
@@ -233,12 +455,11 @@
 
                 folderHeader.onclick = function (event) {
                     event.stopPropagation();
-                    currentSelectedPath = currentPath + '/' + folder.name;
-                    displayFiles(folder.children, currentSelectedPath);
+                    displayFiles(folder.children, folder.path);
                     document.querySelectorAll('.folder-header').forEach(el => el.classList.remove('active-folder'));
                     this.classList.add('active-folder');
-                    // Reset the select all when switching folders
-                    document.getElementById('selectAll').checked = false;
+                    localStorage.setItem('currentFolder', folder.path); // Store the current path in localStorage
+                    document.getElementById('selectAll').checked = false; // Reset the select all when switching folders
                 };
 
                 folderElement.appendChild(folderHeader);
@@ -250,8 +471,7 @@
                     childList.style.display = 'block'; // Keep expanded
                     folder.children.forEach(child => {
                         if (child.children) {
-                            // childList.appendChild(createFolderNode(child));
-                            childList.appendChild(createFolderNode(child, currentPath + '/' + folder.name));
+                            childList.appendChild(createFolderNode(child, selectedFolder));
                         }
                     });
                     folderElement.appendChild(childList);
@@ -259,9 +479,26 @@
 
                 return folderElement;
             }
+            // function setSelectedFolderInSession(selectedFolder) {
+            //     console.log(selectedFolder)
+            //     fetch('/set-folder', {
+            //         method: 'POST',
+            //         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            //         body: `dir=${encodeURIComponent(selectedFolder)}`
+            //     })
+            //         .then(response => response.json())
+            //         .then(data => {
+            //             if (data.success) {
+            //                 console.log('Folder set successfully');
+            //             } else {
+            //                 console.error('Failed to set folder');
+            //             }
+            //         });
+            // }
 
-            /** Responsible for creating the fileManager main content **/  
+            /** Responsible for creating the fileManager main content **/
             function displayFiles(files, path) {
+                // const path1=
                 const fileDisplayArea = document.getElementById('fileDisplayArea');
                 fileDisplayArea.innerHTML = '';
                 files.forEach(file => {
@@ -296,18 +533,57 @@
                         label.textContent = file.name;
                         fileElement.appendChild(label);
 
+                        if (file.status == 'decrypted') {
+                            const thumbnailKey = `thumbnail_${file.name}`;
+                            const storedThumbnail = localStorage.getItem(thumbnailKey);
+
+                            if (storedThumbnail) {
+                                createImageElement(storedThumbnail, icon);
+                            } else {
+                                fetch(`/generate-thumbnail?file=${encodeURIComponent(file.path)}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.thumbnail) {
+                                            localStorage.setItem(thumbnailKey, data.thumbnail);  // Cache the thumbnail
+                                            createImageElement(data.thumbnail, icon);
+                                        }
+                                    });
+                            }
+                        }
+
                         // fileElement.ondblclick = () => openMedia(file.name, `${path}`,`${file.encrypted_file_name}`, file.status =='encrypted'? true: false); // Handle double-click to open media
 
-                        fileElement.ondblclick = () => {
+                        fileElement.ondblclick = (event) => {
                             if (file.status == 'encrypted') {
                                 decryptAndShowFile(file.name, file.encrypted_file_name, path);
                             } else {
                                 openMedia(file.name, path); // No decryption needed for non-encrypted files
                             }
+                            highlightItem(event);
                         };
                         fileDisplayArea.appendChild(fileElement);
                     }
                 });
+            }
+
+            function createImageElement(base64, iconContainer) {
+                iconContainer.style.display = 'none'; // Hide default icon
+                const img = new Image();
+                img.src = base64;
+                img.className = 'thumbnail';
+                img.style.maxWidth = '100%'; // Ensure it fits in the item box
+                img.style.height = 'auto';
+                iconContainer.parentNode.insertBefore(img, iconContainer); // Insert before icon
+            }
+
+            function highlightItem(event) {
+                const clickedElement = event.target.closest('.file-item');
+                if (clickedElement) {
+                    // Remove active class from all file items
+                    document.querySelectorAll('.file-item.active').forEach(el => el.classList.remove('active'));
+                    // Add active class to the clicked file item
+                    clickedElement.classList.add('active');
+                }
             }
 
             // Helper function to format bytes into the highest order size
@@ -395,7 +671,7 @@
                     container.appendChild(video);
                     // setupVideoListeners(video);
                     // Setup the observer on the container that holds the video
-                    setupVideoCloseObserver(container, () => {
+                    setupVideoCloseObserver(document.getElementById('fileDisplayArea'), () => {
                         console.log('Handle video close tasks here.');
                     });
                 }
@@ -412,6 +688,7 @@
             encryptBtn.onclick = function () {
                 const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
                     .map(cb => cb.parentElement.getAttribute('data-file-name'));
+                const currentSelectedPath=localStorage.getItem('currentFolder');
                 const paths = selectedFiles.map(f => `${currentSelectedPath}/${f}`).join(';');
                 const onComplete = () => {
                     // Show the OK button
@@ -434,6 +711,7 @@
             decryptBtn.onclick = function () {
                 const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
                     .map(cb => cb.parentElement.getAttribute('data-encrypted-file-name'));
+                const currentSelectedPath=localStorage.getItem('currentFolder');
                 const paths = selectedFiles.map(f => `${currentSelectedPath}/${f}`).join(';');
                 const onComplete = () => {
                     // Show the OK button
