@@ -1,85 +1,97 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mystic Vault</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
+        let startTime;
+        let processRunning = false;
+
         function submitForm(action) {
-                const form = document.getElementById('encryptionForm');
-                const formData = new FormData(form);
-                formData.append('action', action);  // Specify the action to take, encrypt or decrypt
+            const form = document.getElementById('encryptionForm');
+            const formData = new FormData(form);
+            formData.append('action', action);
 
-                console.log(form.elements); // Check what elements are being selected
-                // Disable form fields and buttons
-                Array.from(form.elements).forEach(element => element.disabled = true);
-                clearResults();
+            Array.from(form.elements).forEach(element => element.disabled = true);
+            clearResults();
 
-                // Show progress bar and clear results button
-                document.getElementById('results').style.display = 'block';
-                document.getElementById('clearResults').style.display = 'inline';
-                // Fetch API to submit the form data
-                fetch('/', {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.json())  // Assuming the server responds with JSON that includes a task_id
-                    .then(data => {
-                        updateProgress(data.task_id);  // Start updating progress based on task_id
-                        console.log("All done")
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);// Re-enable elements if an error occurs early
-                        Array.from(form.elements).forEach(element => {
-                            element.disabled = false;
-                        });
-                    });
-            }
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('clearResults').style.display = 'inline';
+            startTime = new Date(); // Capture start time when the request is sent
+            // Set processRunning flag
+            processRunning = true;
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => updateProgress(data.task_id))
+                .catch(error => {
+                    console.error('Error:', error);
+                    Array.from(form.elements).forEach(element => element.disabled = false);
+                });
+        }
 
         function updateProgress(taskId) {
             fetch(`/progress/${taskId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                const progressBar = document.getElementById('progressBar');
-                const progressText = document.getElementById('progressText');
-        
-                progressBar.value = data.progress;  // Update progress bar
-                progressText.textContent = `Processed: ${data.progress}, Total: ${data.total_files}, Error: ${data.errors.length}`;
-                
-                if (data.progress < 100) {
-                    setTimeout(() => updateProgress(taskId), 1000);
-                } else {
-                    // Re-enable form elements
-                    Array.from(document.getElementById('encryptionForm').elements).forEach(element => {
-                        element.disabled = false;
-                    });
-                }
+                .then(response => response.json())
+                .then(data => {
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
+                    const timeStats = document.getElementById('timeStats');
 
-                // Display errors if any
-                const errorList = document.getElementById('errorList');
-                if (data.errors && data.errors.length > 0) {
-                    let errorHtml = '<ul>';
-                    data.errors.forEach(error => {
-                        errorHtml += `<li>Error with file ${error.file}: ${error.error}</li>`;
-                    });
-                    errorHtml += '</ul>';
-                    errorList.innerHTML = errorHtml;
-                    errorList.style.display = 'block';  // Only show if there are errors
-                }
-                
-            })
-            .catch(error => console.error('Fetch Error:', error));
+                    progressBar.value = data.overall_progress; // Update overall progress bar
+                    progressText.textContent = `Current File: ${data.current_file || 'N/A'}, File Progress: ${data.current_file_progress.toFixed(2)}%, Overall Progress: ${data.overall_progress.toFixed(2)}%, Total Files: ${data.total_files}, Errors: ${data.errors.length}`;
+
+                    if (data.overall_progress < 100) {
+                        setTimeout(() => updateProgress(taskId), 1000);
+                    } else {
+                        // Process is complete
+                        processRunning = false;
+                        const endTime = new Date();
+                        const totalTime = (endTime - startTime) / 1000; // Calculate total time in seconds
+                        timeStats.textContent = `Start: ${startTime.toLocaleTimeString()}, End: ${endTime.toLocaleTimeString()}, Total Time: ${totalTime.toFixed(2)} seconds`;
+                        Array.from(document.getElementById('encryptionForm').elements).forEach(element => element.disabled = false);
+                    }
+
+                    // Display errors if any
+                    const errorList = document.getElementById('errorList');
+                    if (data.errors && data.errors.length > 0) {
+                        let errorHtml = '<ul>';
+                        data.errors.forEach(error => {
+                            errorHtml += `<li>Error with file ${error.file}: ${error.error}</li>`;
+                        });
+                        errorHtml += '</ul>';
+                        errorList.innerHTML = errorHtml;
+                        errorList.style.display = 'block';  // Only show if there are errors
+                    }
+                })
+                .catch(error => console.error('Fetch Error:', error));
         }
+
+        // Warn the user if they try to leave the page during an active process
+        window.addEventListener('beforeunload', function (e) {
+            if (processRunning) {
+                var confirmationMessage = 'Encryption/Decryption process is still running. Are you sure you want to leave?';
+
+                (e || window.event).returnValue = confirmationMessage; // Gecko + IE
+                return confirmationMessage; // Gecko + Webkit, Safari, Chrome etc.
+            }
+        });
+
         function clearResults() {
             document.getElementById('results').style.display = 'none';
             document.getElementById('errorList').style.display = 'none';
             document.getElementById('clearResults').style.display = 'none';
-            document.getElementById('errorList').innerHTML = '';  // Clear error messages
-            document.getElementById('progressBar').value = 0;  // Reset progress bar
+            document.getElementById('progressBar').value = 0;
+            document.getElementById('timeStats').textContent = '';
         }
+
     </script>
+
 </head>
 
 <body>
@@ -90,12 +102,15 @@
     </header>
     <main>
         <form id="encryptionForm">
-            <input type="text" name="folder_path" placeholder="Enter file/folder path. Files should be delimited with ';'" required>
+            <input type="text" name="folder_path"
+                placeholder="Enter file/folder path. Files should be delimited with ';'" required>
             <input type="password" name="password" placeholder="Enter password" required>
             <button type="button" onclick="submitForm('encrypt')">Encrypt</button>
             <button type="button" onclick="submitForm('decrypt')">Decrypt</button>
-            <button type="button" id="clearResults" style="display:none;" onclick="clearResults()">Clear Results</button>
+            <button type="button" id="clearResults" style="display:none;" onclick="clearResults()">Clear
+                Results</button>
         </form>
+        <div id="timeStats" style="margin-top: 10px;"></div>
         <div id="results" style="display: none;">
             <h2>Progress:</h2>
             <div id="progressText"></div>
@@ -104,7 +119,9 @@
         </div>
     </main>
     <footer>
-        © 2024 Mystic Vault. by <a href="https://sunnydsouza.com" style="color:lightblue">@sunnydsouza</a>. All rights reserved.
+        © 2024 Mystic Vault. by <a href="https://sunnydsouza.com" style="color:lightblue">@sunnydsouza</a>. All rights
+        reserved.
     </footer>
 </body>
+
 </html>
